@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rickandmortyinfo"
+    namespace = "com.example.starwarsinfo"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.rickandmortyinfo"
+        applicationId = "com.example.starwarsinfo"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

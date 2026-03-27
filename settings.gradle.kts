@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RickAndMortyInfo"
+rootProject.name = "StarWarsInfo"
 include(":app")
 include(":domain")
 include(":data")

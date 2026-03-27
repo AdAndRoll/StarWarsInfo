@@ -1,51 +1,78 @@
 package com.example.domain.usecases
 
-import com.example.domain.model.RMCharacterDetailed
-import com.example.domain.model.RMCharacterEpisodeSummary
-import com.example.domain.model.RMCharacterDetailsRaw
+import com.example.domain.model.SWCharacterDetailed
+import com.example.domain.model.SWPlanetSummary
+import com.example.domain.model.SWFilmSummary
 import com.example.domain.repository.CharacterRepository
+import com.example.domain.repository.PlanetRepository
 import com.example.domain.utils.Result
+import kotlinx.coroutines.flow.first
 
-
-/**
- * Use Case для получения полной детальной информации о персонаже, включая эпизоды.
- * Этот Use Case выступает в роли оркестратора, координируя запросы к разным репозиториям
- * для сборки полной модели RMCharacterDetailed.
- *
- * @property characterRepository Репозиторий для получения данных о персонаже.
- * @property getCharacterEpisodesUseCase Use Case для получения данных об эпизодов.
- */
 class GetCharacterDetailsUseCase(
     private val characterRepository: CharacterRepository,
-    private val getCharacterEpisodesUseCase: GetCharacterEpisodesUseCase
+    private val planetRepository: PlanetRepository,
+    private val getFilmsUseCase: GetFilmsUseCase
 ) {
-    /**
-     * Выполняет бизнес-логику для получения деталей персонажа.
-     *
-     * @param characterId ID персонажа, информацию о котором нужно получить.
-     * @return [Result] с [RMCharacterDetailed] в случае успеха, или [Throwable] в случае ошибки.
-     */
-    suspend fun execute(characterId: Int): Result<RMCharacterDetailed> {
+    suspend fun execute(characterId: String): Result<SWCharacterDetailed> {
+        // 1. Получаем данные персонажа
+        val characterResult = characterRepository.getCharacterDetails(characterId)
 
-        return when (val characterResult = characterRepository.getCharacterDetails(characterId)) {
-            is Result.Success -> {
-                val rawData = characterResult.data
-
-                when (val episodesResult = getCharacterEpisodesUseCase.execute(rawData.episodeUrls)) {
-                    is Result.Success -> {
-
-                        val updatedDetailedCharacter = RMCharacterDetailed(
-                            character = rawData.character,
-                            origin = rawData.origin,
-                            location = rawData.location,
-                            episodes = episodesResult.data
-                        )
-                        Result.Success(updatedDetailedCharacter)
-                    }
-                    is Result.Error -> Result.Error(episodesResult.exception)
-                }
-            }
-            is Result.Error -> Result.Error(characterResult.exception)
+        if (characterResult is Result.Error) {
+            return Result.Error(characterResult.exception)
         }
+
+        val rawData = (characterResult as Result.Success).data
+        val planetId = extractId(rawData.homeworldUrl)
+
+        // 2. Получаем фильмы (getFilmsUseCase должен возвращать Result<List<SWFilmSummary>>)
+        val filmsResult = getFilmsUseCase.execute(rawData.filmUrls)
+
+        // 3. Получаем планету
+        val planetResult = try {
+            planetRepository.getPlanetDetails(planetId).first()
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+
+        // Формируем объект SWPlanetSummary
+        val homeworldSummary = if (planetResult is Result.Success) {
+            SWPlanetSummary(
+                name = planetResult.data.name,
+                url = planetResult.data.url
+            )
+        } else {
+            // Заглушка на случай ошибки загрузки планеты
+            SWPlanetSummary(name = "Unknown Planet", url = "")
+        }
+
+        // Формируем список SWFilmSummary
+        val filmsSummaries = if (filmsResult is Result.Success) {
+            filmsResult.data // Здесь уже должен быть List<SWFilmSummary>
+        } else {
+            emptyList()
+        }
+
+        // 4. Собираем итоговую модель
+        return Result.Success(
+            SWCharacterDetailed(
+                character = rawData.character,
+                height = rawData.height,
+                birthYear = rawData.birthYear,
+                hairColor = rawData.hairColor,
+                skinColor = rawData.skinColor,
+                eyeColor = rawData.eyeColor,
+                homeworld = homeworldSummary, // Передаем объект, а не строку
+                films = filmsSummaries,       // Передаем список объектов, а не строк
+                species = emptyList(),
+                vehicles = emptyList(),
+                starships = emptyList(),
+                created = rawData.created,
+                edited = rawData.edited
+            )
+        )
+    }
+
+    private fun extractId(url: String): String {
+        return url.trimEnd('/').substringAfterLast("/")
     }
 }

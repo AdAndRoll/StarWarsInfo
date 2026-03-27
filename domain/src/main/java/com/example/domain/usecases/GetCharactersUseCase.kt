@@ -2,7 +2,7 @@ package com.example.domain.usecases
 
 import androidx.paging.PagingData
 import com.example.domain.model.CharacterFilter
-import com.example.domain.model.RMCharacter
+import com.example.domain.model.SWCharacter
 import com.example.domain.repository.CharacterRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -17,9 +17,9 @@ class GetCharactersUseCase(
      * Выполняет получение списка персонажей.
      *
      * @param filter Параметры фильтрации.
-     * @return [Flow] из [PagingData] с доменными моделями [RMCharacter].
+     * @return [Flow] из [PagingData] с доменными моделями [SWCharacter].
      */
-    fun execute(filter: CharacterFilter): Flow<PagingData<RMCharacter>> {
+    fun execute(filter: CharacterFilter): Flow<PagingData<SWCharacter>> {
         return repository.getCharacters(filter)
     }
 }

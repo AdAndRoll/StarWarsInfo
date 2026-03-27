@@ -4,23 +4,16 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Сущность Room для хранения информации о персонаже.
- * Представляет строку в таблице "characters" в локальной базе данных.
- *
- * @param id Уникальный идентификатор персонажа, является первичным ключом.
- * @param name Имя персонажа.
- * @param species Вид персонажа (e.g., "Human", "Alien").
- * @param status Статус персонажа (e.g., "Alive", "Dead", "unknown").
- * @param gender Пол персонажа (e.g., "Male", "Female", "Genderless", "unknown").
- * @param imageUrl URL изображения персонажа.
+ * Сущность для краткого списка персонажей (свернутый вид).
+ * Хранит только те данные, которые нужны для карточки в общем списке.
  */
 @Entity(tableName = "characters")
 data class CharacterEntity(
-    @PrimaryKey val id: Int,
+    @PrimaryKey val id: String,
     val name: String,
-    val species: String,
-    val type: String?,
-    val status: String,
+    val species: String, // Храним ID расы или "Human"
     val gender: String,
-    val imageUrl: String
+    val mass: String,    // Добавили вес для отображения в списке
+    val birthYear: String,
+    val homeworldUrl: String
 )

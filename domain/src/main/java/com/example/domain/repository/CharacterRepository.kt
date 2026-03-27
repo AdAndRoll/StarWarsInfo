@@ -2,9 +2,8 @@ package com.example.domain.repository
 
 import androidx.paging.PagingData
 import com.example.domain.model.CharacterFilter
-import com.example.domain.model.RMCharacter
-import com.example.domain.model.RMCharacterDetailed
-import com.example.domain.model.RMCharacterDetailsRaw
+import com.example.domain.model.SWCharacter
+import com.example.domain.model.SWCharacterDetailsRaw
 import com.example.domain.utils.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -20,7 +19,7 @@ interface CharacterRepository {
      */
     fun getCharacters(
         filter: CharacterFilter
-    ): Flow<PagingData<RMCharacter>>
+    ): Flow<PagingData<SWCharacter>>
 
     /**
      * Обновить список персонажей (например, при Pull-to-Refresh).
@@ -34,5 +33,5 @@ interface CharacterRepository {
      * @param characterId ID персонажа.
      * @return [Result] с [RMCharacterDetailsRaw] в случае успеха, или [Throwable] в случае ошибки.
      */
-    suspend fun getCharacterDetails(characterId: Int): Result<RMCharacterDetailsRaw>
+    suspend fun getCharacterDetails(characterId: String): Result<SWCharacterDetailsRaw>
 }

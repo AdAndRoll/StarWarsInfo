@@ -6,7 +6,7 @@ import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
 import androidx.room.withTransaction
-import com.example.data.local.database.CharacterDatabase
+import com.example.data.local.database.StarWarsDatabase
 import com.example.data.local.datasources.CharacterLocalDataSource
 import com.example.data.local.entity.CharacterEntity
 import com.example.data.local.entity.RemoteKeyEntity
@@ -14,15 +14,13 @@ import com.example.data.mappers.toCharacterEntity
 import com.example.data.remote.datasources.CharacterRemoteDataSource
 import com.example.data.utils.NetworkResult
 import com.example.domain.model.CharacterFilter
-import retrofit2.HttpException
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalPagingApi::class)
 class CharacterRemoteMediator(
     private val characterRemoteDataSource: CharacterRemoteDataSource,
     private val characterLocalDataSource: CharacterLocalDataSource,
-    private val characterDatabase: CharacterDatabase,
+    private val starWarsDatabase: StarWarsDatabase,
     private val filter: CharacterFilter
 ) : RemoteMediator<Int, CharacterEntity>() {
 
@@ -31,39 +29,15 @@ class CharacterRemoteMediator(
 
     override suspend fun initialize(): InitializeAction {
         val remoteKey = characterLocalDataSource.getRemoteKey()
-        val lastUpdateTime = remoteKey?.createdAt ?: 0L
-        val characterCount = characterLocalDataSource.getAllCharactersCount()
         val now = System.currentTimeMillis()
-        val isCacheOutdated = now - lastUpdateTime >= CACHE_TIMEOUT
-        val isCacheInconsistent = lastUpdateTime > 0 && characterCount == 0
 
-        val isFilterChanged = remoteKey?.let {
-            it.filterName != filter.name ||
-                    it.filterStatus != filter.status ||
-                    it.filterSpecies != filter.species ||
-                    it.filterType != filter.type ||
-                    it.filterGender != filter.gender
-        } ?: false
+        // Кэш устарел, если прошло много времени или сменился поисковый запрос
+        val isFilterChanged = remoteKey?.filterName != (filter.name ?: "")
+        val isCacheOutdated = (now - (remoteKey?.createdAt ?: 0L)) >= CACHE_TIMEOUT
 
-        Log.d(
-            TAG,
-            "Checking cache integrity. Last update: $lastUpdateTime, character count: $characterCount"
-        )
-        Log.d(
-            TAG,
-            "Is cache outdated: $isCacheOutdated, Is cache inconsistent: $isCacheInconsistent"
-        )
-        Log.d(TAG, "Is filter changed: $isFilterChanged")
-
-
-        return if (isCacheOutdated || isCacheInconsistent || isFilterChanged) {
-            Log.d(
-                TAG,
-                "Cache is outdated, inconsistent, or filter has changed. Launching initial REFRESH."
-            )
+        return if (isFilterChanged || isCacheOutdated) {
             InitializeAction.LAUNCH_INITIAL_REFRESH
         } else {
-            Log.d(TAG, "Cache is fresh and consistent. Skipping initial REFRESH.")
             InitializeAction.SKIP_INITIAL_REFRESH
         }
     }
@@ -73,94 +47,57 @@ class CharacterRemoteMediator(
         state: PagingState<Int, CharacterEntity>
     ): MediatorResult {
         return try {
-            val currentPage: Int
-
-            when (loadType) {
-                LoadType.REFRESH -> {
-                    Log.d(TAG, "LoadType: REFRESH. Starting from page 1.")
-                    currentPage = 1
-                }
-
-                LoadType.PREPEND -> {
-                    Log.d(TAG, "LoadType: PREPEND. End of pagination reached.")
-                    return MediatorResult.Success(endOfPaginationReached = true)
-                }
-
+            val page = when (loadType) {
+                LoadType.REFRESH -> 1
+                LoadType.PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)
                 LoadType.APPEND -> {
                     val remoteKey = characterLocalDataSource.getRemoteKey()
-                    val nextKey = remoteKey?.nextKey
-
-                    Log.d(TAG, "LoadType: APPEND. Next key from DB: $nextKey")
-
-                    if (nextKey == null) {
-                        Log.d(TAG, "nextKey is null. End of pagination reached.")
-                        return MediatorResult.Success(endOfPaginationReached = true)
-                    } else {
-                        currentPage = nextKey
-                    }
+                    // Если следующей страницы нет, значит мы приехали
+                    remoteKey?.nextKey ?: return MediatorResult.Success(endOfPaginationReached = true)
                 }
             }
 
-            Log.d(TAG, "Requesting characters for page: $currentPage")
-            val apiResult = characterRemoteDataSource.getCharacters(
-                page = currentPage,
-                name = filter.name,
-                status = filter.status,
-                species = filter.species,
-                type = filter.type,
-                gender = filter.gender
-            )
-            Log.d(TAG, "API request for page $currentPage finished.")
+            Log.d(TAG, "SWAPI Request -> Page: $page, Search: ${filter.name}")
 
-            val endOfPaginationReached: Boolean
+            val apiResult = characterRemoteDataSource.getCharacters(
+                page = page,
+                name = filter.name
+            )
+
             when (apiResult) {
                 is NetworkResult.Success -> {
-                    val characters = apiResult.data.results
-                    endOfPaginationReached = apiResult.data.info.next == null
+                    val results = apiResult.data.results
 
-                    characterDatabase.withTransaction {
+                    // Извлекаем номер следующей страницы из "https://swapi.dev/api/people/?search=luke&page=2"
+                    val nextKey = apiResult.data.next?.let { url ->
+                        val uri = android.net.Uri.parse(url)
+                        uri.getQueryParameter("page")?.toIntOrNull()
+                    }
+
+                    val endOfPaginationReached = results.isEmpty() || apiResult.data.next == null
+
+                    starWarsDatabase.withTransaction {
                         if (loadType == LoadType.REFRESH) {
                             characterLocalDataSource.clearAllCharacters()
                             characterLocalDataSource.clearAllRemoteKeys()
-                            Log.d(TAG, "DB cleared for REFRESH due to filter change.")
                         }
 
                         val newRemoteKey = RemoteKeyEntity(
-                            id = 0,
-                            prevKey = if (currentPage == 1) null else currentPage - 1,
-                            nextKey = if (endOfPaginationReached) null else currentPage + 1,
+                            id = 0, // В нашей реализации один ключ на весь список
+                            prevKey = if (page == 1) null else page - 1,
+                            nextKey = nextKey,
                             createdAt = System.currentTimeMillis(),
-                            filterName = filter.name,
-                            filterStatus = filter.status,
-                            filterSpecies = filter.species,
-                            filterType = filter.type,
-                            filterGender = filter.gender
+                            filterName = filter.name ?: "",
                         )
+
                         characterLocalDataSource.insertRemoteKey(newRemoteKey)
-                        characterLocalDataSource.insertCharacters(characters.map { it.toCharacterEntity() })
-                        Log.d(TAG, "${characters.size} characters inserted into DB.")
+                        characterLocalDataSource.insertCharacters(results.map { it.toCharacterEntity() })
                     }
-                    Log.d(TAG, "Returning success. End of pagination: $endOfPaginationReached")
+                    MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
                 }
-
-                is NetworkResult.Error -> {
-                    Log.e(
-                        TAG,
-                        "API request failed with error: ${apiResult.exception.localizedMessage}"
-                    )
-                    return MediatorResult.Error(apiResult.exception)
-                }
+                is NetworkResult.Error -> MediatorResult.Error(apiResult.exception)
             }
-            MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
-
-        } catch (e: IOException) {
-            Log.e(TAG, "Network or I/O error occurred: ${e.localizedMessage}")
-            MediatorResult.Error(e)
-        } catch (e: HttpException) {
-            Log.e(TAG, "HTTP error occurred: ${e.code()} - ${e.localizedMessage}")
-            MediatorResult.Error(e)
         } catch (e: Exception) {
-            Log.e(TAG, "An unexpected error occurred: ${e.localizedMessage}", e)
             MediatorResult.Error(e)
         }
     }

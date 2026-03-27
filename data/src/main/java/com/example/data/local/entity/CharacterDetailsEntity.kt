@@ -22,15 +22,20 @@ import androidx.room.PrimaryKey
  */
 @Entity(tableName = "character_details")
 data class CharacterDetailsEntity(
-    @PrimaryKey val id: Int,
+    @PrimaryKey val id: String,
     val name: String,
-    val status: String,
-    val species: String,
-    val type: String?,
+    val height: String,
+    val mass: String,
+    val hairColor: String,
+    val skinColor: String,
+    val eyeColor: String,
+    val birthYear: String,
     val gender: String,
-    val imageUrl: String,
-    @Embedded(prefix = "origin_") val origin: CharacterDetailsLocation,
-    @Embedded(prefix = "location_") val location: CharacterDetailsLocation,
-    val episodeUrls: List<String>
+    val homeworldUrl: String,
+    val filmUrls: List<String>,
+    val speciesUrls: List<String>,
+    val vehicleUrls: List<String>,
+    val starshipUrls: List<String>,
+    val created: String,
+    val edited: String
 )
-

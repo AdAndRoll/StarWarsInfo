@@ -8,58 +8,41 @@ import androidx.room.Query
 import com.example.data.local.entity.CharacterEntity
 
 /**
- * Data Access Object (DAO) для работы с сущностями персонажей [CharacterEntity].
- * Определяет методы для вставки, получения и очистки данных о персонажах в локальной базе данных.
+ * DAO для работы с персонажами Star Wars.
+ * Упрощено под возможности SWAPI (фильтрация только по имени).
  */
 @Dao
 interface CharacterDao {
 
     /**
-     * Вставляет список персонажей в базу данных.
-     * Если персонаж с таким же ID уже существует, он будет заменен (OnConflictStrategy.REPLACE).
-     *
-     * @param characters Список [CharacterEntity] для вставки.
+     * Получает PagingSource для персонажей.
+     * Оставляем только фильтр по имени, так как остальные данные (status, type) в SWAPI отсутствуют.
      */
-
     @Query(
-        "SELECT * FROM characters WHERE " +
-                "(:name IS NULL OR LOWER(name) LIKE '%' || LOWER(:name) || '%') AND " +
-                "(:status IS NULL OR LOWER(status) = LOWER(:status)) AND " +
-                "(:species IS NULL OR LOWER(species) LIKE '%' || LOWER(:species) || '%') AND " +
-                "(:type IS NULL OR LOWER(type) = LOWER(:type)) AND " +
-                "(:gender IS NULL OR LOWER(gender) = LOWER(:gender)) " +
-                "ORDER BY id ASC"
+        """
+        SELECT * FROM characters 
+        WHERE (:name IS NULL OR LOWER(name) LIKE '%' || LOWER(:name) || '%')
+        """
     )
-    fun getCharactersPagingSource(
-        name: String?, status: String?,
-        species: String?,
-        type: String?,
-        gender: String?
-    ): PagingSource<Int, CharacterEntity>
+    fun getCharactersPagingSource(name: String?): PagingSource<Int, CharacterEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCharacters(characters: List<CharacterEntity>)
 
     /**
-     * Получает всех персонажей из базы данных в виде [PagingSource].
-     * Используется Paging 3 для загрузки данных постранично.
-     *
-     * @return [PagingSource] с [CharacterEntity].
+     * Метод для получения всех персонажей без фильтрации.
      */
     @Query("SELECT * FROM characters")
     fun getAllCharacters(): PagingSource<Int, CharacterEntity>
 
     /**
-     * Очищает (удаляет) все записи из таблицы персонажей.
+     * Очистка таблицы при REFRESH в RemoteMediator.
      */
     @Query("DELETE FROM characters")
     suspend fun clearAllCharacters()
 
     /**
-     * Возвращает общее количество персонажей в базе данных.
-     * Этот метод необходим для проверки, пуста ли база данных.
-     *
-     * @return Количество записей в таблице.
+     * Подсчет количества записей для проверки состояния кэша.
      */
     @Query("SELECT COUNT(*) FROM characters")
     suspend fun getAllCharactersCount(): Int

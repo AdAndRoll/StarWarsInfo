@@ -4,31 +4,31 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.data.local.entity.RemoteKeyEntity // Убедитесь, что это новая RemoteKeyEntity
+import com.example.data.local.entity.RemoteKeyEntity
 
 @Dao
 interface RemoteKeyDao {
 
     /**
-     * Вставляет или заменяет существующую запись RemoteKeyEntity.
-     * Эта функция будет автоматически работать с новой сущностью,
-     * содержащей поля для фильтров.
+     * Сохраняет ключ пагинации.
+     * Мы используем REPLACE, чтобы всегда иметь актуальное состояние
+     * текущей страницы и примененных фильтров.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(remoteKey: RemoteKeyEntity)
 
     /**
-     * Получает единственную запись RemoteKeyEntity из таблицы,
-     * включая параметры фильтра, которые были использованы для её создания.
+     * Получает ключ пагинации.
+     * В нашей реализации мы используем одну запись (id = 0) для управления
+     * всем списком персонажей, так как пагинация линейная.
      */
     @Query("SELECT * FROM remote_keys WHERE id = 0")
     suspend fun getRemoteKey(): RemoteKeyEntity?
 
     /**
-     * Очищает всю таблицу с ключами пагинации.
-     * Используется при обновлении данных.
+     * Полная очистка ключей.
+     * Вызывается в RemoteMediator при LoadType.REFRESH.
      */
     @Query("DELETE FROM remote_keys")
     suspend fun clearAllRemoteKeys()
-
 }

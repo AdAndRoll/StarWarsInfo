@@ -5,17 +5,10 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "remote_keys")
 data class RemoteKeyEntity(
-
     @PrimaryKey(autoGenerate = false)
-    val id: Int = 0,
-
+    val id: Int = 0, // У нас обычно один ключ для управления списком
     val prevKey: Int?,
     val nextKey: Int?,
     val createdAt: Long,
-
-    val filterName: String? = null,
-    val filterStatus: String? = null,
-    val filterSpecies: String? = null,
-    val filterType: String? = null,
-    val filterGender: String? = null
+    val filterName: String? = null // Оставляем только то, что поддерживает API
 )

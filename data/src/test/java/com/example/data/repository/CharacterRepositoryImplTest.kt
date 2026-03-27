@@ -5,11 +5,10 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.testing.asSnapshot
-import com.example.data.local.database.CharacterDatabase
+import com.example.data.local.database.StarWarsDatabase
 import com.example.data.local.datasources.CharacterDetailsLocalDataSource
 import com.example.data.local.datasources.CharacterLocalDataSource
 import com.example.data.local.entity.CharacterDetailsEntity
-import com.example.data.local.entity.CharacterDetailsLocation
 import com.example.data.local.entity.CharacterEntity
 import com.example.data.local.entity.RemoteKeyEntity
 import com.example.data.mappers.toCharacter
@@ -39,7 +38,7 @@ class CharacterRepositoryImplTest {
     private lateinit var remoteDataSource: CharacterRemoteDataSource
     private lateinit var localDataSource: CharacterLocalDataSource
     private lateinit var detailsLocalDataSource: CharacterDetailsLocalDataSource
-    private lateinit var database: CharacterDatabase
+    private lateinit var database: StarWarsDatabase
 
     @BeforeEach
     fun setUp() {

@@ -7,44 +7,32 @@ import androidx.room.Query
 import com.example.data.local.entity.CharacterDetailsEntity
 
 /**
- * Интерфейс Data Access Object (DAO) для работы с сущностью CharacterDetailsEntity.
- * Предоставляет методы для взаимодействия с таблицей "character_details".
+ * DAO для работы с ПОЛНОЙ информацией о персонажах Star Wars.
  */
 @Dao
 interface CharacterDetailsDao {
 
     /**
-     * Возвращает детали персонажа по его уникальному идентификатору.
-     * @param characterId Уникальный идентификатор персонажа.
-     * @return Объект CharacterDetailsEntity или null, если персонаж не найден.
+     * Возвращает детали персонажа по его строковому ID.
      */
     @Query("SELECT * FROM character_details WHERE id = :characterId")
-    suspend fun getCharacterDetails(characterId: Int): CharacterDetailsEntity?
+    suspend fun getCharacterDetails(characterId: String): CharacterDetailsEntity?
 
     /**
      * Вставляет или обновляет детали персонажа.
-     * Если персонаж с таким id уже существует, он будет заменен.
-     * @param characterDetails Объект CharacterDetailsEntity для вставки/обновления.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCharacterDetails(characterDetails: CharacterDetailsEntity)
 
     /**
-     * Удаляет детали персонажа по его уникальному идентификатору.
-     * @param characterId Уникальный идентификатор персонажа.
-     * @return Количество удаленных строк.
+     * Удаляет детали персонажа.
      */
     @Query("DELETE FROM character_details WHERE id = :characterId")
-    suspend fun deleteCharacterDetails(characterId: Int): Int
+    suspend fun deleteCharacterDetails(characterId: String): Int
 
     /**
-     * Получает детали персонажа по его ID.
-     * Возвращаемый тип теперь `CharacterDetailsEntity?`, что позволяет вернуть null,
-     * если персонаж не найден в базе данных.
-     *
-     * @param characterId ID персонажа.
-     * @return [CharacterDetailsEntity] или null, если персонаж не найден.
+     * Дублирующий метод (можно оставить или удалить, если используется getCharacterDetails).
      */
     @Query("SELECT * FROM character_details WHERE id = :characterId")
-    suspend fun getCharacterDetailsById(characterId: Int): CharacterDetailsEntity?
+    suspend fun getCharacterDetailsById(characterId: String): CharacterDetailsEntity?
 }
