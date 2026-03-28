@@ -56,7 +56,7 @@ class GetCharacterDetailsUseCase(
         return Result.Success(
             SWCharacterDetailed(
                 character = rawData.character,
-                height = rawData.height,
+                height = rawData.character.height,
                 birthYear = rawData.birthYear,
                 hairColor = rawData.hairColor,
                 skinColor = rawData.skinColor,

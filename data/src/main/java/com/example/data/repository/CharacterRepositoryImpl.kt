@@ -40,9 +40,9 @@ class CharacterRepositoryImpl @Inject constructor(
         return Pager(
             config = PagingConfig(
                 pageSize = 10, // В SWAPI обычно 10 элементов на страницу
-                enablePlaceholders = false,
+                enablePlaceholders = true,
                 initialLoadSize = 10,
-                prefetchDistance = 3
+                prefetchDistance = 5
             ),
             remoteMediator = CharacterRemoteMediator(
                 characterRemoteDataSource = characterRemoteDataSource,

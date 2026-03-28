@@ -11,6 +11,7 @@ import com.example.data.local.datasources.CharacterLocalDataSource
 import com.example.data.local.entity.CharacterEntity
 import com.example.data.local.entity.RemoteKeyEntity
 import com.example.data.mappers.toCharacterEntity
+import com.example.data.mappers.toSwapiId // Импортируем твой маппер
 import com.example.data.remote.datasources.CharacterRemoteDataSource
 import com.example.data.utils.NetworkResult
 import com.example.domain.model.CharacterFilter
@@ -28,14 +29,12 @@ class CharacterRemoteMediator(
     private val TAG = "CharacterRemoteMediator"
 
     override suspend fun initialize(): InitializeAction {
-        val remoteKey = characterLocalDataSource.getRemoteKey()
+        val randomKey = characterLocalDataSource.getRemoteKeyByCharacterId("1")
         val now = System.currentTimeMillis()
+        val isCacheOutdated = (now - (randomKey?.createdAt ?: 0L)) >= CACHE_TIMEOUT
+        val dbCount = characterLocalDataSource.getAllCharactersCount()
 
-        // Кэш устарел, если прошло много времени или сменился поисковый запрос
-        val isFilterChanged = remoteKey?.filterName != (filter.name ?: "")
-        val isCacheOutdated = (now - (remoteKey?.createdAt ?: 0L)) >= CACHE_TIMEOUT
-
-        return if (isFilterChanged || isCacheOutdated) {
+        return if (dbCount == 0 || isCacheOutdated) {
             InitializeAction.LAUNCH_INITIAL_REFRESH
         } else {
             InitializeAction.SKIP_INITIAL_REFRESH
@@ -48,16 +47,26 @@ class CharacterRemoteMediator(
     ): MediatorResult {
         return try {
             val page = when (loadType) {
-                LoadType.REFRESH -> 1
-                LoadType.PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)
+                LoadType.REFRESH -> {
+                    val remoteKeys = getRemoteKeyClosestToCurrentPosition(state)
+                    remoteKeys?.nextKey?.minus(1) ?: 1
+                }
+                LoadType.PREPEND -> {
+                    return MediatorResult.Success(endOfPaginationReached = true)
+                }
                 LoadType.APPEND -> {
-                    val remoteKey = characterLocalDataSource.getRemoteKey()
-                    // Если следующей страницы нет, значит мы приехали
-                    remoteKey?.nextKey ?: return MediatorResult.Success(endOfPaginationReached = true)
+                    val remoteKeys = getRemoteKeyForLastItem(state)
+                    val nextKey = remoteKeys?.nextKey
+
+                    // Если ключей нет в базе, но это APPEND — значит мы еще в процессе загрузки первой страницы
+                    if (nextKey == null) {
+                        return MediatorResult.Success(endOfPaginationReached = remoteKeys != null)
+                    }
+                    nextKey
                 }
             }
 
-            Log.d(TAG, "SWAPI Request -> Page: $page, Search: ${filter.name}")
+            Log.d(TAG, "✈️ Request: Page $page, Type $loadType, Filter: '${filter.name ?: ""}'")
 
             val apiResult = characterRemoteDataSource.getCharacters(
                 page = page,
@@ -66,15 +75,9 @@ class CharacterRemoteMediator(
 
             when (apiResult) {
                 is NetworkResult.Success -> {
-                    val results = apiResult.data.results
-
-                    // Извлекаем номер следующей страницы из "https://swapi.dev/api/people/?search=luke&page=2"
-                    val nextKey = apiResult.data.next?.let { url ->
-                        val uri = android.net.Uri.parse(url)
-                        uri.getQueryParameter("page")?.toIntOrNull()
-                    }
-
-                    val endOfPaginationReached = results.isEmpty() || apiResult.data.next == null
+                    val apiResponse = apiResult.data
+                    val results = apiResponse.results
+                    val endOfPaginationReached = results.isEmpty() || apiResponse.next == null
 
                     starWarsDatabase.withTransaction {
                         if (loadType == LoadType.REFRESH) {
@@ -82,23 +85,53 @@ class CharacterRemoteMediator(
                             characterLocalDataSource.clearAllRemoteKeys()
                         }
 
-                        val newRemoteKey = RemoteKeyEntity(
-                            id = 0, // В нашей реализации один ключ на весь список
-                            prevKey = if (page == 1) null else page - 1,
-                            nextKey = nextKey,
-                            createdAt = System.currentTimeMillis(),
-                            filterName = filter.name ?: "",
-                        )
+                        val prevKey = if (page == 1) null else page - 1
+                        val nextKey = if (endOfPaginationReached) null else page + 1
 
-                        characterLocalDataSource.insertRemoteKey(newRemoteKey)
+                        val keys = results.map { dto ->
+                            RemoteKeyEntity(
+                                characterId = dto.url.toSwapiId(), // ИСПОЛЬЗУЕМ МАППЕР
+                                prevKey = prevKey,
+                                nextKey = nextKey,
+                                createdAt = System.currentTimeMillis()
+                            )
+                        }
+
+                        characterLocalDataSource.insertRemoteKeys(keys)
                         characterLocalDataSource.insertCharacters(results.map { it.toCharacterEntity() })
                     }
+
+                    Log.d(TAG, "✅ Success: Page $page, Added ${results.size}. End=$endOfPaginationReached")
                     MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
                 }
-                is NetworkResult.Error -> MediatorResult.Error(apiResult.exception)
+
+                is NetworkResult.Error -> {
+                    Log.e(TAG, "❌ Network Error: ${apiResult.exception.message}")
+                    MediatorResult.Error(apiResult.exception)
+                }
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Unexpected Error", e)
             MediatorResult.Error(e)
+        }
+    }
+
+    private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, CharacterEntity>): RemoteKeyEntity? {
+        val lastItem = state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull()
+        return lastItem?.let { character ->
+            val key = characterLocalDataSource.getRemoteKeyByCharacterId(character.id)
+            Log.d(TAG, "🔍 APPEND: Last ID in UI: ${character.id}, Key found: ${key?.nextKey}")
+            key
+        }
+    }
+
+    private suspend fun getRemoteKeyClosestToCurrentPosition(state: PagingState<Int, CharacterEntity>): RemoteKeyEntity? {
+        return state.anchorPosition?.let { position ->
+            state.closestItemToPosition(position)?.id?.let { id ->
+                val key = characterLocalDataSource.getRemoteKeyByCharacterId(id)
+                Log.d(TAG, "🔍 REFRESH: Anchor ID: $id, Key found: ${key?.nextKey}")
+                key
+            }
         }
     }
 }

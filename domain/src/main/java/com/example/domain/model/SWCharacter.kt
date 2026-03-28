@@ -5,5 +5,6 @@ data class SWCharacter(
     val name: String,
     val species: String, // Название расы
     val gender: String,
+    val height: String,
     val mass: String
 )

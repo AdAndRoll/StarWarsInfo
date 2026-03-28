@@ -27,7 +27,7 @@ import com.example.data.local.entity.RemoteKeyEntity
         PlanetDetailEntity::class, // Заменили LocationDetailEntity
         SWFilmEntity::class        // Заменили RMEpisodeEntity
     ],
-    version = 1, // Сбрасываем версию, так как схема изменилась кардинально
+    version = 4, // Сбрасываем версию, так как схема изменилась кардинально
     exportSchema = false
 )
 @TypeConverters(CharacterTypeConverters::class)

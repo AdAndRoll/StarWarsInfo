@@ -15,15 +15,15 @@ interface RemoteKeyDao {
      * текущей страницы и примененных фильтров.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplace(remoteKey: RemoteKeyEntity)
+    suspend fun insertAll(remoteKey: List<RemoteKeyEntity>)
 
     /**
      * Получает ключ пагинации.
      * В нашей реализации мы используем одну запись (id = 0) для управления
      * всем списком персонажей, так как пагинация линейная.
      */
-    @Query("SELECT * FROM remote_keys WHERE id = 0")
-    suspend fun getRemoteKey(): RemoteKeyEntity?
+    @Query("SELECT * FROM remote_keys WHERE characterId = :characterId")
+    suspend fun getRemoteKeyByCharacterId(characterId: String): RemoteKeyEntity?
 
     /**
      * Полная очистка ключей.

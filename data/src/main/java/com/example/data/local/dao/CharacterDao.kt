@@ -9,41 +9,46 @@ import com.example.data.local.entity.CharacterEntity
 
 /**
  * DAO для работы с персонажами Star Wars.
- * Упрощено под возможности SWAPI (фильтрация только по имени).
+ * Оптимизировано для работы с RemoteMediator.
  */
 @Dao
 interface CharacterDao {
 
     /**
-     * Получает PagingSource для персонажей.
-     * Оставляем только фильтр по имени, так как остальные данные (status, type) в SWAPI отсутствуют.
+     * Основной метод для Paging 3.
+     * * ВАЖНО: Мы НЕ фильтруем здесь по имени через WHERE, так как RemoteMediator
+     * сам заботится о том, чтобы в базе находились только нужные персонажи
+     * (после очистки при REFRESH). Это предотвращает мерцание UI.
+     * Сортировка по первичному ключу (или полю 'created') гарантирует стабильный порядок.
      */
-    @Query(
-        """
-        SELECT * FROM characters 
-        WHERE (:name IS NULL OR LOWER(name) LIKE '%' || LOWER(:name) || '%')
-        """
-    )
-    fun getCharactersPagingSource(name: String?): PagingSource<Int, CharacterEntity>
+    @Query("SELECT * FROM characters ORDER BY CAST(id AS INTEGER) ASC")
+    fun getCharactersPagingSource(): PagingSource<Int, CharacterEntity>
 
+    /**
+     * Вставка персонажей.
+     * REPLACE критически важен, чтобы RemoteMediator мог обновлять данные
+     * без удаления всей таблицы, если ID совпадает.
+     */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCharacters(characters: List<CharacterEntity>)
 
     /**
-     * Метод для получения всех персонажей без фильтрации.
-     */
-    @Query("SELECT * FROM characters")
-    fun getAllCharacters(): PagingSource<Int, CharacterEntity>
-
-    /**
-     * Очистка таблицы при REFRESH в RemoteMediator.
+     * Очистка таблицы.
+     * Вызывается в RemoteMediator ТОЛЬКО при LoadType.REFRESH и только если
+     * данные реально устарели или изменился поисковый запрос.
      */
     @Query("DELETE FROM characters")
     suspend fun clearAllCharacters()
 
     /**
-     * Подсчет количества записей для проверки состояния кэша.
+     * Проверка количества записей.
      */
     @Query("SELECT COUNT(*) FROM characters")
     suspend fun getAllCharactersCount(): Int
+
+    /**
+     * Дополнительный метод: получение конкретного персонажа (например, для Detail Screen).
+     */
+    @Query("SELECT * FROM characters WHERE id = :characterId")
+    suspend fun getCharacterById(characterId: String): CharacterEntity?
 }

@@ -93,15 +93,25 @@ fun FilmDetailScreen(
                     // Тот самый вступительный текст (Opening Crawl)
                     item {
                         Surface(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = MaterialTheme.shapes.medium
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            // Делаем фон чуть темнее, чтобы желтый текст лучше "читался"
+                            color = Color.Black.copy(alpha = 0.2f),
+                            shape = MaterialTheme.shapes.medium,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            )
                         ) {
                             Text(
                                 text = film.openingCrawl,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontStyle = FontStyle.Italic,
+                                fontWeight = FontWeight.Medium, // Сделаем чуть жирнее для читаемости
                                 textAlign = TextAlign.Center,
+                                // ИСПОЛЬЗУЕМ ВАШ ЖЕЛТЫЙ ЦВЕТ
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(20.dp),
                                 lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.5
                             )

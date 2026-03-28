@@ -32,7 +32,9 @@ class PlanetRepositoryImpl @Inject constructor(
 
     override fun getPlanetDetails(planetId: String): Flow<Result<SWPlanetDetail>> = flow {
         // 1. Пытаемся взять из кэша
-        val localDetails = planetLocalDataSource.getPlanetDetails(planetId)
+        val cleanId = planetId.toSwapiId()
+        Log.d(TAG, "Fetching film ID: $cleanId")
+        val localDetails = planetLocalDataSource.getPlanetDetails(cleanId)
 
         if (localDetails != null) {
             // Используем residentUrls (из твоей Entity)
@@ -42,7 +44,7 @@ class PlanetRepositoryImpl @Inject constructor(
         }
 
         // 2. Идем в сеть
-        when (val remoteResult = planetRemoteDataSource.getPlanetDetails(planetId)) {
+        when (val remoteResult = planetRemoteDataSource.getPlanetDetails(cleanId)) {
             is NetworkResult.Success -> {
                 val planetDto = remoteResult.data
 

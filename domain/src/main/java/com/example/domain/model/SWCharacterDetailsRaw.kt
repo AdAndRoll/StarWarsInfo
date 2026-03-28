@@ -4,7 +4,6 @@ package com.example.domain.model
 
 data class SWCharacterDetailsRaw(
     val character: SWCharacter,
-    val height: String,
     val hairColor: String,
     val skinColor: String,
     val eyeColor: String,

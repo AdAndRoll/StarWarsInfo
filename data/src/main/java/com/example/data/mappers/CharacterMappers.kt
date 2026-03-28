@@ -26,7 +26,8 @@ fun CharacterDto.toCharacterEntity(): CharacterEntity {
         gender = this.gender,
         mass = this.mass, // Добавили для свернутого вида
         birthYear = this.birthYear,
-        homeworldUrl = this.homeworldUrl
+        homeworldUrl = this.homeworldUrl,
+        height = this.height
     )
 }
 
@@ -40,6 +41,7 @@ fun CharacterEntity.toCharacter(): SWCharacter {
         species = this.species,
         gender = this.gender,
         mass = this.mass,
+        height = this.height
     )
 }
 
@@ -53,6 +55,7 @@ fun CharacterDto.toCharacter(): SWCharacter {
         species = this.speciesUrls.firstOrNull()?.toSwapiId() ?: "1",
         gender = this.gender,
         mass = this.mass,
+        height = this.height
     )
 }
 
@@ -86,7 +89,7 @@ fun CharacterDto.toCharacterDetailsEntity(): CharacterDetailsEntity {
 fun CharacterDto.toCharacterDetailsRaw(): SWCharacterDetailsRaw {
     return SWCharacterDetailsRaw(
         character = this.toCharacter(), // Здесь создается SWCharacter (5 полей)
-        height = this.height,
+
         hairColor = this.hairColor,
         skinColor = this.skinColor,
         eyeColor = this.eyeColor,
@@ -111,9 +114,10 @@ fun CharacterDetailsEntity.toCharacterDetailsRaw(): SWCharacterDetailsRaw {
             name = this.name,
             species = this.speciesUrls.firstOrNull()?.toSwapiId() ?: "1",
             gender = this.gender,
-            mass = this.mass
+            mass = this.mass,
+            height = this.height
         ),
-        height = this.height,
+
         hairColor = this.hairColor,
         skinColor = this.skinColor,
         eyeColor = this.eyeColor,

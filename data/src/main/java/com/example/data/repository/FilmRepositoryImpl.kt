@@ -35,15 +35,17 @@ class FilmRepositoryImpl @Inject constructor(
     override fun getFilmDetails(filmId: String): Flow<Result<SWFilm>> = flow {
         Log.d(TAG, "Fetching film ID: $filmId")
 
+        val cleanId = filmId.toSwapiId()
+        Log.d(TAG, "Fetching film ID OUR CLEAN ID IS: $cleanId")
         // 1. Сначала данные из кэша
-        val localData = localDataSource.getFilm(filmId)
+        val localData = localDataSource.getFilm(cleanId)
         if (localData != null) {
             val characters = getCharacters(localData.characterUrls)
             emit(Result.Success(localData.toSWFilm(characters)))
         }
 
         // 2. Сетевой запрос для актуализации
-        when (val networkResult = remoteDataSource.getFilm(filmId)) {
+        when (val networkResult = remoteDataSource.getFilm(cleanId)) {
             is NetworkResult.Success -> {
                 val filmDto = networkResult.data
                 localDataSource.insertFilm(filmDto.toFilmEntity())

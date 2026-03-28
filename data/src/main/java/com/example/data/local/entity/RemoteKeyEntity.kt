@@ -6,9 +6,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "remote_keys")
 data class RemoteKeyEntity(
     @PrimaryKey(autoGenerate = false)
-    val id: Int = 0, // У нас обычно один ключ для управления списком
+    val characterId: String, // Привязываем ключ к ID персонажа
     val prevKey: Int?,
     val nextKey: Int?,
-    val createdAt: Long,
-    val filterName: String? = null // Оставляем только то, что поддерживает API
+    val createdAt: Long = System.currentTimeMillis()
 )

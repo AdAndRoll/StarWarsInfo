@@ -27,9 +27,7 @@ class CharacterLocalDataSource @Inject constructor(
      * В SWAPI фильтруем только по имени.
      */
     fun getCharactersPagingSource(filter: CharacterFilter): PagingSource<Int, CharacterEntity> {
-        return characterDao.getCharactersPagingSource(
-            name = filter.name?.takeIf { it.isNotBlank() }
-        )
+        return characterDao.getCharactersPagingSource()
     }
 
     /**
@@ -42,15 +40,15 @@ class CharacterLocalDataSource @Inject constructor(
     /**
      * Сохраняет ключ пагинации.
      */
-    suspend fun insertRemoteKey(remoteKey: RemoteKeyEntity) {
-        remoteKeysDao.insertOrReplace(remoteKey)
+    suspend fun insertRemoteKeys(remoteKeys: List<RemoteKeyEntity>) {
+        remoteKeysDao.insertAll(remoteKeys)
     }
 
     /**
      * Получает текущий ключ пагинации для определения следующей страницы.
      */
-    suspend fun getRemoteKey(): RemoteKeyEntity? {
-        return remoteKeysDao.getRemoteKey()
+    suspend fun getRemoteKeyByCharacterId(id: String): RemoteKeyEntity? {
+        return remoteKeysDao.getRemoteKeyByCharacterId(id)
     }
 
     /**
